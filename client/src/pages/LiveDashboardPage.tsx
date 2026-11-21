@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useEventSource } from '../hooks/useEventSource.js';
+import { useEventSource } from '../hooks/useEventSource';
 import {
   Heart,
   Radio,

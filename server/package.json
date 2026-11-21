@@ -1,6 +1,7 @@
 {
   "name": "raktsetu-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "Backend API and escalation engine for RaktSetu",
   "main": "dist/server.js",
   "scripts": {

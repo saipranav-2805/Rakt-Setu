@@ -14,7 +14,7 @@ services:
       - mongo-data:/data/db
     command: ["--replSet", "rs0", "--bind_ip_all"]
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"localhost:27017\"}]}).ok }'"]
+      test: ["CMD-SHELL", "mongosh --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongo:27017\"}]}).ok }'"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -45,7 +45,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 5000
       MONGODB_URI: mongodb://mongo:27017/raktsetu?replicaSet=rs0
       REDIS_HOST: redis
@@ -56,9 +56,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./server:/app
-      - /app/node_modules
 
   # Dedicated Background Worker (Matching, Wave Escalation, Expiry sweeps)
   worker:
@@ -67,9 +64,9 @@ services:
       dockerfile: Dockerfile
     container_name: raktsetu-worker
     restart: always
-    command: ["npm", "run", "worker"]
+    command: ["node", "dist/worker.js"]
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       MONGODB_URI: mongodb://mongo:27017/raktsetu?replicaSet=rs0
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -79,9 +76,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./server:/app
-      - /app/node_modules
 
   # React 19 Frontend Web Client
   client:

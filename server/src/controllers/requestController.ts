@@ -160,11 +160,17 @@ export async function acceptRequest(req: AuthenticatedRequest, res: Response): P
     return;
   }
 
+  const targetReq = await RequestModel.findById(id);
+  if (!targetReq) {
+    res.status(404).json({ success: false, error: 'Request not found' });
+    return;
+  }
+
   // 1. Atomic conditional update: only increment if unitsConfirmed < unitsNeeded
   const updatedRequest = await RequestModel.findOneAndUpdate(
     {
       _id: id,
-      unitsConfirmed: { $lt: await RequestModel.findById(id).then((r) => r?.unitsNeeded || 0) },
+      unitsConfirmed: { $lt: targetReq.unitsNeeded },
       state: { $in: ['OPEN', 'MATCHING', 'PARTIALLY_FULFILLED'] }
     },
     {

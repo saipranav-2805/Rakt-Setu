@@ -10,20 +10,11 @@ requested or installed for the RaktSetu project.
 - Python 3: Installed (Python 3.9.6 at /usr/bin/python3)
 - Homebrew: Installed (/opt/homebrew/bin/brew)
 - Node.js / npm: Not installed on host.
-- Docker: Selected by User for Containerized Execution.
+- Docker: Installation initiated via Homebrew (`brew install --cask docker`).
 
-[USER SELECTION]
-Date: 2026-11-21
-Selection: Docker ("Docker it is")
-Rationale: Keeps host system clean; runs MongoDB 7.0 replica-set, Redis 7.2 alpine,
-API server, and BullMQ worker inside isolated containers via docker-compose.yml.
-
-[INSTALLATION OPTIONS FOR MACOS]
-Option A (Recommended standard): Docker Desktop
-Command: brew install --cask docker
-Notes: Installs Docker Desktop for Mac with GUI, Dashboard, and Docker Compose v2.
-
-Option B (Lightweight CLI alternative): Colima + Docker CLI
-Command: brew install colima docker docker-compose && colima start
-Notes: Headless, consumes less RAM/battery on MacBook Air.
+[ACTIVE INSTALLATION]
+Target: Docker Desktop for Mac
+Status: In progress (downloading via Homebrew Cask)
+Next Step upon completion: Launch Docker Desktop to initialize the background daemon.
 =============================================================================
+

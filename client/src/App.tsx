@@ -1,11 +1,11 @@
 import React from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
-import HomePage from './pages/HomePage.js';
-import CreateRequestPage from './pages/CreateRequestPage.js';
-import LiveDashboardPage from './pages/LiveDashboardPage.js';
-import DonorOnboardingPage from './pages/DonorOnboardingPage.js';
-import DonorResponsePage from './pages/DonorResponsePage.js';
-import AdminPage from './pages/AdminPage.js';
+import HomePage from './pages/HomePage';
+import CreateRequestPage from './pages/CreateRequestPage';
+import LiveDashboardPage from './pages/LiveDashboardPage';
+import DonorOnboardingPage from './pages/DonorOnboardingPage';
+import DonorResponsePage from './pages/DonorResponsePage';
+import AdminPage from './pages/AdminPage';
 import { HeartHandshake, ShieldAlert } from 'lucide-react';
 
 export default function App() {
