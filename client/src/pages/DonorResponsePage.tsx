@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, AlertCircle, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function DonorResponsePage() {
   const { code } = useParams<{ code: string }>();

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ShieldAlert, UserX, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ShieldAlert, UserX, CheckCircle } from 'lucide-react';
 
 export default function AdminPage() {
   const [flaggedRequests, setFlaggedRequests] = useState<any[]>([]);

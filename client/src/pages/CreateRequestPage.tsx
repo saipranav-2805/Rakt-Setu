@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Heart, MapPin, Building, AlertTriangle, CheckCircle2, PhoneCall } from 'lucide-react';
 
@@ -155,6 +155,33 @@ export default function CreateRequestPage() {
               <option value="critical">Critical (Immediate dispatch, 6h expiry)</option>
               <option value="urgent">Urgent (24h expiry)</option>
               <option value="planned">Planned (Scheduled)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Patient Demographics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Patient Age</label>
+            <input
+              type="number"
+              min="0"
+              max="120"
+              value={age}
+              onChange={(e) => setAge(parseInt(e.target.value, 10) || 0)}
+              className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Patient Gender</label>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value as any)}
+              className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800"
+            >
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
             </select>
           </div>
         </div>

@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEventSource } from '../hooks/useEventSource';
 import {
-  Heart,
   Radio,
   Phone,
   MessageSquare,
-  Share2,
   Clock,
   ShieldCheck,
-  CheckCircle,
   Copy,
   Check
 } from 'lucide-react';

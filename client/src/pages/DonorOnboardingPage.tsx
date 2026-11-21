@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Heart, CheckCircle2 } from 'lucide-react';
 
 export default function DonorOnboardingPage() {
   const navigate = useNavigate();
@@ -206,6 +206,29 @@ export default function DonorOnboardingPage() {
               maxLength={6}
               value={pincode}
               onChange={(e) => setPincode(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Max Travel Distance (Km)</label>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              value={maxTravelKm}
+              onChange={(e) => setMaxTravelKm(parseInt(e.target.value, 10) || 15)}
+              className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Last Donation Date (Optional)</label>
+            <input
+              type="date"
+              value={lastDonationAt}
+              onChange={(e) => setLastDonationAt(e.target.value)}
               className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm"
             />
           </div>
