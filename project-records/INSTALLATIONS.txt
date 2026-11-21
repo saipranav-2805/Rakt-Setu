@@ -1,0 +1,23 @@
+=============================================================================
+RAKTSETU - SYSTEM INSTALLATIONS & ENVIRONMENT RECORD
+=============================================================================
+This file tracks all system packages, CLIs, runtimes, and external dependencies
+requested or installed for the RaktSetu project.
+
+[SYSTEM STATUS AUDIT]
+- Operating System: macOS (Darwin)
+- Git: Installed (/usr/bin/git)
+- Python 3: Installed (Python 3.9.6 at /usr/bin/python3)
+- Homebrew: Installed (/opt/homebrew/bin/brew)
+- Node.js / npm: NOT currently installed in macOS path.
+- Docker: NOT currently installed in macOS path.
+
+[PROPOSED INSTALLATIONS - PENDING USER APPROVAL]
+To run and execute the full TypeScript server, client, BullMQ workers, and tests locally:
+1. Node.js (v20+ LTS): Recommended via Homebrew (`brew install node`)
+2. Docker Desktop / Colima: Recommended for containerized MongoDB replica-set & Redis
+
+[FILES WRITTEN INSIDE WORKSPACE]
+All project source code, configuration files, and tests have been constructed
+inside /Users/pranav/Documents/Resume Projects/RaktSetu with ZERO outside changes.
+=============================================================================

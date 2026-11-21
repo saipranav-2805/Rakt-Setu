@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # MongoDB with Single-Node Replica Set (Required for MongoDB Multi-Document Transactions)
+  mongo:
+    image: mongo:7.0
+    container_name: raktsetu-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: raktsetu
+    volumes:
+      - mongo-data:/data/db
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"localhost:27017\"}]}).ok }'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Redis for BullMQ Queue & Fast Rate Limiting
+  redis:
+    image: redis:7.2-alpine
+    container_name: raktsetu-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Express REST API Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: raktsetu-api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/raktsetu?replicaSet=rs0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NOTIFICATION_PROVIDER: mock
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+  # Dedicated Background Worker (Matching, Wave Escalation, Expiry sweeps)
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: raktsetu-worker
+    restart: always
+    command: ["npm", "run", "worker"]
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongo:27017/raktsetu?replicaSet=rs0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NOTIFICATION_PROVIDER: mock
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+volumes:
+  mongo-data:
+  redis-data:

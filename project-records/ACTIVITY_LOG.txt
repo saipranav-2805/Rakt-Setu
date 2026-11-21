@@ -1,0 +1,80 @@
+=============================================================================
+RAKTSETU - PROJECT ACTIVITY & CHANGES LOG
+=============================================================================
+This file tracks all structural changes, file creations, configuration updates,
+and architectural implementations within the project folder.
+
+-----------------------------------------------------------------------------
+Timestamp: 2026-11-21T15:55:00+05:30
+Action: Initialized Git repository in project root (/Users/pranav/Documents/Resume Projects/RaktSetu/.git).
+
+Timestamp: 2026-11-21T16:05:00+05:30
+Action: Created root monorepo scaffolding:
+  - package.json (root workspaces: client, server)
+  - docker-compose.yml (Mongo 7.0 replica-set rs0, Redis 7.2 alpine, API, Worker)
+  - .env.example (comprehensive environment configuration template)
+  - .gitignore
+
+Timestamp: 2026-11-21T16:02:00+05:30 - 16:06:00+05:30
+Action: Created Backend Architecture (server/src):
+  - Constants & Types:
+    - server/src/types/index.ts (BloodGroup, RequestState, UserRole, GeoPoint, etc.)
+    - server/src/constants/bloodCompatibility.ts (Red cell compatibility matrix)
+    - server/src/constants/requestStates.ts (Allowed state transitions, terminal states)
+    - server/src/constants/waves.ts (Wave 1 to 4 schedules, radii, delay calculations)
+    - server/src/config/cooldown.ts (NBTC 90-day male / 120-day female guidelines, age 18-65, weight >= 45kg)
+    - server/src/config/ranking.ts (5-factor score weights, over-notification multiplier 4x)
+  - Mongoose Models with required indexes:
+    - server/src/models/User.ts (E.164 phone unique index)
+    - server/src/models/Donor.ts (2dsphere index on location, compound index on bloodGroup, availability, nextEligibleAt)
+    - server/src/models/Request.ts (Compound index on state + expiresAt)
+    - server/src/models/Notification.ts (Unique compound index on requestId + donorId)
+    - server/src/models/Acceptance.ts (Unique compound index on requestId + donorId)
+    - server/src/models/AuditEvent.ts (Append-only hash-chained schema)
+    - server/src/models/WebhookEvent.ts (Unique index on eventId for idempotency)
+  - Core Services & Algorithms:
+    - server/src/services/audit/hashChain.ts (Canonical JSON + SHA-256 hash chaining)
+    - server/src/services/matching/ranking.ts (Multi-factor ranking engine)
+    - server/src/services/matching/candidateQuery.ts ($geoNear spherical aggregation pipeline)
+    - server/src/services/stateMachine/transition.ts (Optimistic locking version checks & audit event)
+    - server/src/services/queue/queues.ts (BullMQ matching, notification, expiry queues)
+    - server/src/services/queue/waveWorker.ts (Wave escalation worker with deterministic job IDs)
+    - server/src/services/queue/notificationWorker.ts (Outbound WhatsApp/SMS dispatch worker)
+    - server/src/services/sse/sseManager.ts (Server-Sent Events stream manager)
+    - server/src/services/notifications/ (NotificationProvider interface, Mock, Twilio, WhatsAppCloud, SMS)
+  - Controllers & Routes:
+    - server/src/controllers/authController.ts (Phone OTP & JWT issuance)
+    - server/src/controllers/donorController.ts (DPDP Act 2023 donor onboarding & pause/delete)
+    - server/src/controllers/requestController.ts (Atomic conditional update acceptance under contention, masked views)
+    - server/src/controllers/webhookController.ts (Meta HMAC signature verification & eventId deduplication)
+    - server/src/controllers/adminController.ts (Flagged queue review & user ban)
+    - server/src/app.ts, server/src/server.ts, server/src/worker.ts
+  - Automated Tests:
+    - server/tests/unit/compatibility.test.ts
+    - server/tests/unit/eligibility.test.ts
+    - server/tests/unit/ranking.test.ts
+    - server/tests/unit/hashChain.test.ts
+    - server/tests/concurrency/acceptContention.test.ts (50-way concurrent acceptance showpiece)
+  - Scripts:
+    - server/src/scripts/seedDonors.ts (Generates 5k-100k synthetic donors across Indian cities)
+
+Timestamp: 2026-11-21T16:07:00+05:30 - 16:08:00+05:30
+Action: Created Frontend Application (client/src):
+  - Configuration:
+    - client/package.json (React 19, Vite, Tailwind CSS, TanStack Query, Leaflet)
+    - client/tsconfig.json
+    - client/vite.config.ts
+    - client/tailwind.config.js
+    - client/public/manifest.json (PWA support)
+  - Key Screens:
+    - client/src/pages/HomePage.tsx (Screen 1 & 2: "Find blood now", 8 big blood group buttons)
+    - client/src/pages/CreateRequestPage.tsx (Screen 3 & 4: Location, compatible groups preview, phone OTP)
+    - client/src/pages/LiveDashboardPage.tsx (Screen 5: Real-time SSE wave timeline, notified counter, acceptance cards, Call & WhatsApp action buttons, family share link)
+    - client/src/pages/DonorOnboardingPage.tsx (Screen 6: Donor registration with DPDP Act consent toggles)
+    - client/src/pages/DonorResponsePage.tsx (Screen 6: Same-day health checklist & accept/decline)
+    - client/src/pages/AdminPage.tsx (Screen 7: Moderation queue & user ban)
+
+Timestamp: 2026-11-21T16:09:00+05:30
+Action: Created Documentation & Auditing:
+  - README.md (Comprehensive architecture diagram, showpiece concurrency test proof, NBTC citations, design decisions)
+-----------------------------------------------------------------------------

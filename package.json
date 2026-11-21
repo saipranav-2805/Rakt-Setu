@@ -1,0 +1,29 @@
+{
+  "name": "raktsetu",
+  "version": "1.0.0",
+  "description": "RaktSetu: Emergency Blood Donor Matching Platform",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "build": "npm run build --workspace=server && npm run build --workspace=client",
+    "test": "npm run test --workspace=server",
+    "test:concurrency": "npm run test:concurrency --workspace=server",
+    "seed": "npm run seed --workspace=server",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "lint": "npm run lint --workspace=server && npm run lint --workspace=client"
+  },
+  "keywords": [
+    "blood-donation",
+    "emergency-matching",
+    "geospatial",
+    "bullmq",
+    "mongodb-2dsphere"
+  ],
+  "author": "SaiPranav Yellaram",
+  "license": "ISC"
+}
