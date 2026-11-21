@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MongoDB with Single-Node Replica Set (Required for MongoDB Multi-Document Transactions)
   mongo:

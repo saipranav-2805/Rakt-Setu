@@ -55,7 +55,7 @@ export class SmsProvider implements INotificationProvider {
         }
       );
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
       return response.ok
         ? { success: true, provider: 'sms', providerMessageId: data.sid }
         : { success: false, provider: 'sms', error: data.message };

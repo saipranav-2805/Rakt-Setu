@@ -51,7 +51,7 @@ export class WhatsAppCloudProvider implements INotificationProvider {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
       if (!response.ok) {
         return { success: false, provider: 'whatsapp_cloud', error: data.error?.message || 'Meta API error' };
       }

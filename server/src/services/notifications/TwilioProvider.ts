@@ -55,7 +55,7 @@ export class TwilioProvider implements INotificationProvider {
         }
       );
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
       if (!response.ok) {
         return { success: false, provider: 'twilio', error: data.message || 'Twilio send failed' };
       }

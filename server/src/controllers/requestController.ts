@@ -94,7 +94,7 @@ export async function createEmergencyRequest(req: AuthenticatedRequest, res: Res
  * Public Request View (Masked Donor Data according to Section 14.1)
  */
 export async function getPublicRequestByCode(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const { code } = req.params;
+  const code = req.params.code as string;
   const request = await RequestModel.findOne({ code }).populate('requesterId', 'name');
 
   if (!request) {
@@ -150,7 +150,7 @@ export async function getPublicRequestByCode(req: AuthenticatedRequest, res: Res
  * Blueprint Section 13.1 Showpiece Algorithm
  */
 export async function acceptRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const user = req.user!;
   const { screeningAnswers } = req.body;
 
@@ -252,7 +252,7 @@ export async function acceptRequest(req: AuthenticatedRequest, res: Response): P
  * Requester marks request closed / fulfilled / cancelled
  */
 export async function closeRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { reason, state } = req.body;
   const user = req.user!;
 
@@ -282,7 +282,7 @@ export async function closeRequest(req: AuthenticatedRequest, res: Response): Pr
  * Report suspicious request (Abuse prevention - auto pause after threshold)
  */
 export async function reportSuspiciousRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const user = req.user!;
   const { reason } = req.body;
 
@@ -300,7 +300,7 @@ export async function reportSuspiciousRequest(req: AuthenticatedRequest, res: Re
  * Live SSE Stream Endpoint for Requesters
  */
 export function streamRequestUpdates(req: AuthenticatedRequest, res: Response): void {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const clientId = `client_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
   sseManager.addClient(clientId, id, res);

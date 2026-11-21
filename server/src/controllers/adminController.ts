@@ -25,7 +25,7 @@ export async function getFlaggedRequests(req: AuthenticatedRequest, res: Respons
  * Ban abusive user (Section 15)
  */
 export async function banUser(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { reason } = req.body;
   const admin = req.user!;
 
