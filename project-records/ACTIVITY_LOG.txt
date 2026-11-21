@@ -78,9 +78,19 @@ Timestamp: 2026-11-21T16:09:00+05:30
 Action: Created Documentation & Auditing:
   - README.md (Comprehensive architecture diagram, showpiece concurrency test proof, NBTC citations, design decisions)
 
-Timestamp: 2026-11-21T16:13:00+05:30
-Action: Containerized full frontend client with Nginx reverse proxy (client/Dockerfile & client/nginx.conf) and integrated into docker-compose.yml.
+Timestamp: 2026-11-21T22:13:00+05:30
+Action: Launched full 5-container Docker Compose stack:
+  - raktsetu-mongo: MongoDB 7.0 replica-set rs0 (healthy)
+  - raktsetu-redis: Redis 7.2 alpine (healthy)
+  - raktsetu-api: Express API (port 5001)
+  - raktsetu-worker: BullMQ escalation worker
+  - raktsetu-client: React 19 web app with Nginx reverse proxy (port 3000)
 
-Timestamp: 2026-11-21T16:19:00+05:30
-Action: Executed Homebrew installation of Docker Desktop (`brew install --cask docker`) per user approval.
+Timestamp: 2026-11-21T22:14:00+05:30
+Action: Seeded 5,000 synthetic donors across Hyderabad, Bengaluru, Delhi, and Mumbai.
+
+Timestamp: 2026-11-21T22:18:00+05:30
+Action: Executed automated test suite in container:
+  - All 19 tests passed across 5 test suites.
+  - 50-way concurrent acceptance under contention passed (asserted exactly 2 accepted, 48 waitlisted, 0 over-allocations).
 -----------------------------------------------------------------------------
