@@ -9,15 +9,21 @@ requested or installed for the RaktSetu project.
 - Git: Installed (/usr/bin/git)
 - Python 3: Installed (Python 3.9.6 at /usr/bin/python3)
 - Homebrew: Installed (/opt/homebrew/bin/brew)
-- Node.js / npm: NOT currently installed in macOS path.
-- Docker: NOT currently installed in macOS path.
+- Node.js / npm: Not installed on host.
+- Docker: Selected by User for Containerized Execution.
 
-[PROPOSED INSTALLATIONS - PENDING USER APPROVAL]
-To run and execute the full TypeScript server, client, BullMQ workers, and tests locally:
-1. Node.js (v20+ LTS): Recommended via Homebrew (`brew install node`)
-2. Docker Desktop / Colima: Recommended for containerized MongoDB replica-set & Redis
+[USER SELECTION]
+Date: 2026-11-21
+Selection: Docker ("Docker it is")
+Rationale: Keeps host system clean; runs MongoDB 7.0 replica-set, Redis 7.2 alpine,
+API server, and BullMQ worker inside isolated containers via docker-compose.yml.
 
-[FILES WRITTEN INSIDE WORKSPACE]
-All project source code, configuration files, and tests have been constructed
-inside /Users/pranav/Documents/Resume Projects/RaktSetu with ZERO outside changes.
+[INSTALLATION OPTIONS FOR MACOS]
+Option A (Recommended standard): Docker Desktop
+Command: brew install --cask docker
+Notes: Installs Docker Desktop for Mac with GUI, Dashboard, and Docker Compose v2.
+
+Option B (Lightweight CLI alternative): Colima + Docker CLI
+Command: brew install colima docker docker-compose && colima start
+Notes: Headless, consumes less RAM/battery on MacBook Air.
 =============================================================================

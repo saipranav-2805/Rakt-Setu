@@ -83,6 +83,18 @@ services:
       - ./server:/app
       - /app/node_modules
 
+  # React 19 Frontend Web Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: raktsetu-client
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+
 volumes:
   mongo-data:
   redis-data:
