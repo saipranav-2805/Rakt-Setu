@@ -13,6 +13,7 @@ import { matchingQueue, expiryQueue } from '../services/queue/queues.js';
 import { sseManager } from '../services/sse/sseManager.js';
 import { appendAuditEvent } from '../services/audit/hashChain.js';
 import { getNotificationProvider } from '../services/notifications/index.js';
+import { TERMINAL_STATES } from '../constants/requestStates.js';
 
 export const createRequestSchema = z.object({
   patient: z.object({
@@ -348,4 +349,111 @@ export async function streamRequestUpdates(req: AuthenticatedRequest, res: Respo
   const clientId = `client_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
   sseManager.addClient(clientId, targetId, res);
+}
+
+/**
+ * Execute simulated acceptance for a request (used by demo mode auto-response and simulate button)
+ */
+export async function executeSimulatedAcceptance(requestIdOrCode: string): Promise<any> {
+  const targetReq = mongoose.isValidObjectId(requestIdOrCode)
+    ? await RequestModel.findById(requestIdOrCode)
+    : await RequestModel.findOne({ code: requestIdOrCode });
+
+  if (!targetReq) return { success: false, error: 'Request not found' };
+  if (targetReq.unitsConfirmed >= targetReq.unitsNeeded || TERMINAL_STATES.includes(targetReq.state)) {
+    return { success: false, error: 'Request already filled or in terminal state' };
+  }
+
+  const id = targetReq._id.toString();
+
+  // Find an eligible donor matching compatible groups
+  const donor = await Donor.findOne({
+    bloodGroup: { $in: targetReq.compatibleGroups },
+    availability: 'available'
+  }).populate('userId');
+
+  if (!donor) return { success: false, error: 'No matching donor found' };
+  const donorUser = donor.userId as any;
+
+  // 1. Atomic conditional update
+  const updatedRequest = await RequestModel.findOneAndUpdate(
+    {
+      _id: id,
+      unitsConfirmed: { $lt: targetReq.unitsNeeded },
+      state: { $in: ['OPEN', 'MATCHING', 'PARTIALLY_FULFILLED'] }
+    },
+    { $inc: { unitsConfirmed: 1 } },
+    { new: true }
+  );
+
+  let acceptanceStatus: 'ACCEPTED' | 'WAITLISTED' = 'ACCEPTED';
+  if (updatedRequest) {
+    if (updatedRequest.unitsConfirmed >= updatedRequest.unitsNeeded) {
+      updatedRequest.state = 'FULFILLED';
+      await updatedRequest.save();
+    } else {
+      updatedRequest.state = 'PARTIALLY_FULFILLED';
+      await updatedRequest.save();
+    }
+  } else {
+    acceptanceStatus = 'WAITLISTED';
+  }
+
+  // 2. Record acceptance
+  const acceptance = await Acceptance.findOneAndUpdate(
+    { requestId: id, donorId: donor._id },
+    {
+      status: acceptanceStatus,
+      acceptedAt: new Date(),
+      screeningAnswers: { feelingWell: true, noFever: true, noMeds: true, weightOk: true },
+      contactRevealedAt: new Date()
+    },
+    { upsert: true, new: true }
+  );
+
+  // 3. Update notification record
+  await NotificationModel.findOneAndUpdate(
+    { requestId: id, donorId: donor._id },
+    { response: 'ACCEPTED', respondedAt: new Date(), status: 'READ' }
+  );
+
+  await Donor.findByIdAndUpdate(donor._id, { $inc: { 'stats.accepted': 1 } });
+
+  // 4. Broadcast live update to requester dashboard via SSE and Redis
+  sseManager.broadcastToRequest(id, {
+    type: 'DONOR_ACCEPTED',
+    payload: {
+      acceptanceId: acceptance._id,
+      donorFirstName: (donorUser?.name || 'Verified Donor').split(' ')[0],
+      bloodGroup: donor.bloodGroup,
+      status: acceptanceStatus,
+      unitsConfirmed: updatedRequest ? updatedRequest.unitsConfirmed : undefined
+    }
+  });
+
+  // 5. Append audit event
+  await appendAuditEvent({
+    requestId: id,
+    actor: donorUser?._id ? donorUser._id.toString() : 'DEMO_SIMULATOR',
+    type: `DONOR_${acceptanceStatus}`,
+    payload: { donorId: donor._id, status: acceptanceStatus }
+  });
+
+  return {
+    success: true,
+    status: acceptanceStatus,
+    donorFirstName: (donorUser?.name || 'Verified Donor').split(' ')[0],
+    bloodGroup: donor.bloodGroup,
+    unitsConfirmed: updatedRequest?.unitsConfirmed,
+    requestState: updatedRequest?.state
+  };
+}
+
+/**
+ * Endpoint to manually simulate donor WhatsApp acceptance in demo mode
+ */
+export async function simulateDonorAcceptance(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const idOrCode = req.params.id as string;
+  const result = await executeSimulatedAcceptance(idOrCode);
+  res.status(result.success ? 200 : 400).json(result);
 }

@@ -9,6 +9,7 @@ import { TERMINAL_STATES } from '../../constants/requestStates.js';
 import { OVER_NOTIFICATION_MULTIPLIER } from '../../config/ranking.js';
 import { sseManager } from '../sse/sseManager.js';
 import { appendAuditEvent } from '../audit/hashChain.js';
+import { executeSimulatedAcceptance } from '../../controllers/requestController.js';
 
 export interface WaveJobData {
   requestId: string;
@@ -138,9 +139,27 @@ export const waveWorker = new Worker<WaveJobData>(
           notifiedCount: selectedDonors.length
         }
       });
+
+      // 10. Auto-simulate donor acceptance in demo mode after 3 seconds
+      const isDemoMode = process.env.DEMO_MODE === 'true';
+      if (isDemoMode && selectedDonors.length > 0) {
+        setTimeout(async () => {
+          try {
+            const freshReq = await RequestModel.findById(requestId);
+            if (freshReq && freshReq.unitsConfirmed < freshReq.unitsNeeded && !TERMINAL_STATES.includes(freshReq.state)) {
+              const res = await executeSimulatedAcceptance(requestId);
+              if (res?.success) {
+                console.log(`[WaveWorker] Auto-simulated donor response for request ${requestId}: ${res.donorFirstName} confirmed`);
+              }
+            }
+          } catch (e: any) {
+            console.warn('[WaveWorker] Simulated donor response error:', e.message);
+          }
+        }, 3500);
+      }
     }
 
-    // 10. Schedule next wave if there is a subsequent wave in the schedule
+    // 11. Schedule next wave if there is a subsequent wave in the schedule
     const nextWaveConfig = WAVE_SCHEDULE.find((w) => w.waveNumber === waveNumber + 1);
     if (nextWaveConfig) {
       const isDemoMode = process.env.DEMO_MODE === 'true';

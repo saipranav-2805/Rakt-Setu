@@ -22,7 +22,7 @@ export function getWaveDelayMs(
   waveNumber: number,
   urgency: UrgencyLevel,
   demoMode = false,
-  fastForwardSeconds = 30
+  fastForwardSeconds = 6
 ): number {
   if (demoMode) {
     return fastForwardSeconds * 1000;

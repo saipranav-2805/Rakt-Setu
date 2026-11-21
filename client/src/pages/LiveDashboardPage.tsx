@@ -4,7 +4,7 @@ import { useEventSource } from '../hooks/useEventSource';
 import {
   Radio, Phone, MessageSquare, Clock, ShieldCheck,
   Copy, Check, ChevronLeft, Droplets, Users, Ambulance,
-  Waves, MapPin
+  Waves, MapPin, Zap
 } from 'lucide-react';
 
 const WAVE_CONFIG = [
@@ -23,23 +23,23 @@ function LivePulse({ connected }: { connected: boolean }) {
     }`}>
       <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 live-dot' : 'bg-slate-400'}`} />
       <Radio className="w-3.5 h-3.5" />
-      <span>{connected ? 'Live' : 'Reconnecting'}</span>
+      <span>{connected ? 'Live Stream' : 'Syncing'}</span>
     </div>
   );
 }
 
 function WaveProgressBar({ currentWave, radiusKm }: { currentWave: number; radiusKm: number }) {
-  const percent = (currentWave / 4) * 100;
+  const percent = Math.min(100, (currentWave / 4) * 100);
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center space-x-2 font-bold text-slate-700">
           <Waves className="w-4 h-4 text-blue-500" />
-          <span>Wave {currentWave} of 4 Active</span>
+          <span>Wave {currentWave || 1} of 4 Active</span>
         </div>
         <div className="flex items-center space-x-1.5 text-blood-700 font-bold">
           <MapPin className="w-3.5 h-3.5" />
-          <span>~{radiusKm} km radius</span>
+          <span>~{radiusKm || 5} km radius</span>
         </div>
       </div>
 
@@ -47,10 +47,10 @@ function WaveProgressBar({ currentWave, radiusKm }: { currentWave: number; radiu
       <div className="flex gap-1.5">
         {WAVE_CONFIG.map(({ wave, radius, label, color }) => (
           <div key={wave} className="flex-1">
-            <div className={`h-2 rounded-full transition-all duration-700 ${
-              wave <= currentWave ? color : 'bg-slate-200'
+            <div className={`h-2.5 rounded-full transition-all duration-500 ${
+              wave <= (currentWave || 1) ? color : 'bg-slate-200'
             }`} />
-            <div className="text-[9px] text-slate-400 font-medium mt-1 text-center hidden sm:block">
+            <div className="text-[10px] text-slate-500 font-semibold mt-1 text-center hidden sm:block">
               W{wave} · {radius}
             </div>
           </div>
@@ -66,7 +66,7 @@ function WaveProgressBar({ currentWave, radiusKm }: { currentWave: number; radiu
 
       <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
         <div
-          className="bg-gradient-to-r from-blue-400 to-blood-600 h-full rounded-full transition-all duration-700 ease-out wave-fill-anim"
+          className="bg-gradient-to-r from-blue-400 to-blood-600 h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${percent}%` }}
         />
       </div>
@@ -110,7 +110,7 @@ function DonorCard({ acc }: { acc: any }) {
         <div className="flex gap-2 pt-1">
           <a
             href={`tel:${acc.phone}`}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5"
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors"
           >
             <Phone className="w-3.5 h-3.5" />
             <span>Call Donor</span>
@@ -119,7 +119,7 @@ function DonorCard({ acc }: { acc: any }) {
             href={`https://wa.me/${acc.phone.replace(/\D/g, '')}`}
             target="_blank"
             rel="noreferrer"
-            className="flex-1 bg-[#25D366] hover:bg-[#1db954] text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5"
+            className="flex-1 bg-[#25D366] hover:bg-[#1db954] text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>WhatsApp</span>
@@ -139,6 +139,7 @@ export default function LiveDashboardPage() {
   const [request, setRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [simulating, setSimulating] = useState(false);
 
   const fetchRequest = useCallback(async () => {
     try {
@@ -152,8 +153,25 @@ export default function LiveDashboardPage() {
     }
   }, [code]);
 
-  useEffect(() => { fetchRequest(); }, [fetchRequest]);
+  // Initial fetch
+  useEffect(() => {
+    fetchRequest();
+  }, [fetchRequest]);
 
+  // Continuous fallback polling every 2s while search is active
+  useEffect(() => {
+    if (!request) return;
+    const isTerminal = request.state === 'FULFILLED' || request.state === 'CANCELLED' || request.state === 'EXPIRED';
+    if (isTerminal) return;
+
+    const interval = setInterval(() => {
+      fetchRequest();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [request?.state, fetchRequest]);
+
+  // SSE Stream
   const sseUrl = request?.id ? `/api/v1/requests/${request.id}/stream` : null;
   const { data: sseEvent, connected } = useEventSource(sseUrl);
 
@@ -174,9 +192,24 @@ export default function LiveDashboardPage() {
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const handleSimulateDonorResponse = async () => {
+    setSimulating(true);
+    try {
+      const res = await fetch(`/api/v1/requests/${code}/simulate-accept`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        await fetchRequest();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-4">
+      <div className="max-w-3xl mx-auto space-y-4 pt-2">
         <div className="bg-white rounded-2xl p-8 border border-slate-200 animate-pulse">
           <div className="h-6 bg-slate-200 rounded-xl w-1/3 mb-3" />
           <div className="h-4 bg-slate-100 rounded-xl w-1/2 mb-6" />
@@ -188,7 +221,7 @@ export default function LiveDashboardPage() {
 
   if (!request) {
     return (
-      <div className="max-w-xl mx-auto bg-white rounded-2xl p-10 border border-slate-200 text-center space-y-4">
+      <div className="max-w-xl mx-auto bg-white rounded-2xl p-10 border border-slate-200 text-center space-y-4 pt-4">
         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
           <Droplets className="w-8 h-8 text-slate-400" />
         </div>
@@ -210,7 +243,7 @@ export default function LiveDashboardPage() {
   const fillPercent = neededCount > 0 ? Math.min(100, (confirmedCount / neededCount) * 100) : 0;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-3xl mx-auto space-y-5 pt-2">
 
       {/* ── Main Status Card ── */}
       <div className={`rounded-2xl shadow-sm border p-6 sm:p-8 ${
@@ -220,26 +253,26 @@ export default function LiveDashboardPage() {
       }`}>
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
           <div className="flex items-center space-x-3">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
               isFulfilled ? 'bg-emerald-500' : 'bg-blood-700'
             }`}>
               <Ambulance className="w-6 h-6 text-white" />
             </div>
             <div>
               <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
-                <h1 className="text-xl font-black text-slate-800">Request #{request.code}</h1>
+                <h1 className="text-xl sm:text-2xl font-black text-slate-800">Request #{request.code}</h1>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-black uppercase tracking-wide ${
                   isFulfilled
                     ? 'bg-emerald-100 text-emerald-800'
-                    : request.state === 'ACTIVE'
+                    : request.state === 'MATCHING'
                     ? 'bg-blood-100 text-blood-800'
                     : 'bg-slate-100 text-slate-700'
                 }`}>
                   {request.state}
                 </span>
               </div>
-              <p className="text-sm text-slate-500 mt-0.5">
-                {request.hospital?.name} · {request.patient?.bloodGroup}
+              <p className="text-sm text-slate-500 mt-1">
+                {request.hospital?.name} · Patient Blood: <strong className="text-blood-700 font-black">{request.patient?.bloodGroup}</strong>
               </p>
             </div>
           </div>
@@ -248,7 +281,7 @@ export default function LiveDashboardPage() {
             <LivePulse connected={connected} />
             <button
               onClick={copyShareLink}
-              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200"
+              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 transition-colors"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               <span>{copied ? 'Copied!' : 'Share'}</span>
@@ -270,7 +303,7 @@ export default function LiveDashboardPage() {
           </div>
           <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-700 ${isFulfilled ? 'bg-emerald-500' : 'bg-blood-600'}`}
+              className={`h-full rounded-full transition-all duration-500 ${isFulfilled ? 'bg-emerald-500' : 'bg-blood-600'}`}
               style={{ width: `${fillPercent}%` }}
             />
           </div>
@@ -280,7 +313,28 @@ export default function LiveDashboardPage() {
         <WaveProgressBar currentWave={request.currentWave || 1} radiusKm={request.radiusKm || 5} />
       </div>
 
-      {/* ── Responding Donors ── */}
+      {/* ── Demo Acceleration Banner ── */}
+      {!isFulfilled && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-blood-500/10 to-emerald-500/10 border border-amber-300/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-sm">
+          <div className="flex items-center space-x-2.5 text-slate-700">
+            <Zap className="w-4 h-4 text-amber-500 flex-shrink-0 animate-bounce" />
+            <div>
+              <span className="font-bold text-slate-800">Fast Wave Search Active:</span>
+              <span className="text-slate-600 ml-1">Expanding wave radius every 6 seconds. You can also simulate an immediate donor response:</span>
+            </div>
+          </div>
+          <button
+            onClick={handleSimulateDonorResponse}
+            disabled={simulating}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2.5 rounded-xl flex items-center space-x-1.5 shadow-md transition-all whitespace-nowrap disabled:opacity-60"
+          >
+            <Zap className="w-3.5 h-3.5 fill-white" />
+            <span>{simulating ? 'Processing...' : '⚡ Accept as Donor Now'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── Responding Donors Card ── */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-black text-slate-800 flex items-center space-x-2">
@@ -295,20 +349,28 @@ export default function LiveDashboardPage() {
         </div>
 
         {!request.acceptances || request.acceptances.length === 0 ? (
-          <div className="text-center py-12 space-y-4">
+          <div className="text-center py-10 space-y-4">
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
-              <Users className="w-8 h-8 text-slate-300 animate-pulse" />
+              <Users className="w-8 h-8 text-blood-500 animate-pulse" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-600">Scanning donors in active radius...</p>
+              <p className="text-sm font-bold text-slate-700">Dispatching Waves & Scanning nearby donors...</p>
               <p className="text-xs text-slate-400 mt-1">
-                When a donor accepts the WhatsApp request, their card will appear here in real time.
+                WhatsApp alerts dispatched to voluntary donors within {request.radiusKm || 5} km.
               </p>
             </div>
-            <div className="flex items-center justify-center space-x-2 text-xs text-slate-400">
-              <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
-              <span>Notifications dispatched — awaiting responses</span>
+            <div className="flex items-center justify-center space-x-2 text-xs text-slate-500">
+              <Clock className="w-4 h-4 text-amber-500 animate-spin" style={{ animationDuration: '2s' }} />
+              <span>Auto-escalating wave radius every 6 seconds</span>
             </div>
+            <button
+              onClick={handleSimulateDonorResponse}
+              disabled={simulating}
+              className="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all mt-2"
+            >
+              <Zap className="w-3.5 h-3.5 fill-white" />
+              <span>{simulating ? 'Processing Acceptance...' : '⚡ Simulate Instant Donor Response'}</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -320,7 +382,7 @@ export default function LiveDashboardPage() {
       </div>
 
       {/* Back link */}
-      <div className="text-center">
+      <div className="text-center pt-2">
         <Link to="/" className="inline-flex items-center space-x-1.5 text-sm text-slate-500 hover:text-blood-700 font-medium">
           <ChevronLeft className="w-4 h-4" />
           <span>Back to Home</span>

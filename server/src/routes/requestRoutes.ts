@@ -6,6 +6,7 @@ import {
   acceptRequest,
   closeRequest,
   reportSuspiciousRequest,
+  simulateDonorAcceptance,
   createRequestSchema
 } from '../controllers/requestController.js';
 import { requireAuth, optionalAuth } from '../middlewares/auth.js';
@@ -17,6 +18,7 @@ router.post('/', requireAuth, validate(createRequestSchema), createEmergencyRequ
 router.get('/:code', getPublicRequestByCode);
 router.get('/:id/stream', streamRequestUpdates);
 router.post('/:id/accept', optionalAuth, acceptRequest);
+router.post('/:id/simulate-accept', simulateDonorAcceptance);
 router.post('/:id/close', requireAuth, closeRequest);
 router.post('/:id/report', optionalAuth, reportSuspiciousRequest);
 

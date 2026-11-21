@@ -2,6 +2,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import mongoose from 'mongoose';
+import './models/User.js';
+import './models/Donor.js';
+import './models/Request.js';
+import './models/Notification.js';
+import './models/Acceptance.js';
+import './models/AuditEvent.js';
 import { waveWorker } from './services/queue/waveWorker.js';
 import { notificationWorker } from './services/queue/notificationWorker.js';
 

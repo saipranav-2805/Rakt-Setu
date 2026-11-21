@@ -120,3 +120,22 @@ Action: Full Frontend UI Overhaul & Backend Resilience Fixes:
   5. Container Rebuild & Verification:
      - Rebuilt and restarted all 5 Docker containers via `docker compose up -d --build`.
      - Executed full end-to-end integration test: OTP verification -> Emergency request creation (`RS-RHGC3L`) -> Wave 1 candidate matching (58 candidates matched) -> Donor acceptance -> Concurrency-safe state transition (`OPEN` -> `FULFILLED`, 1/1 units confirmed). All endpoints returning 200 OK.
+
+-----------------------------------------------------------------------------
+Timestamp: 2026-11-22T00:08:00+05:30
+Action: Accelerated Wave Search, Distributed SSE Pub/Sub, Auto-Simulation & Fixed Sticky Header:
+  1. Header Overlap & Layout Fix:
+     - client/src/App.tsx: Added `ScrollToTop` hook on route change so new views (e.g. `/r/:code`) never start partially scrolled behind the sticky header. Streamlined the demo badge directly into the header bar on desktop with a slim mobile strip.
+     - client/src/pages/LiveDashboardPage.tsx: Added clean top padding (`pt-2`), ensuring the request header and ambulance icon are always prominently visible at the top without overlapping or clipping.
+  2. Accelerated Wave Escalation:
+     - server/src/constants/waves.ts: Reduced wave delay in demo mode from 30 seconds to 6 seconds for rapid escalation (Wave 1 @ 5km -> Wave 2 @ 15km -> Wave 3 @ 30km -> Wave 4 @ 50km).
+  3. Distributed Server-Sent Events (SSE) via Redis Pub/Sub:
+     - server/src/services/sse/sseManager.ts: Integrated Redis Pub/Sub (`pubClient` & `subClient`) so background BullMQ workers in `raktsetu-worker` publish live wave and acceptance events to Redis, and `raktsetu-api` broadcasts them instantly to browser EventSource clients across container boundaries.
+  4. Real-Time Auto-Simulation & Fallback Polling:
+     - server/src/worker.ts: Imported all Mongoose models (`User`, `Donor`, `Request`, etc.) to prevent model registration errors during background candidate queries and population.
+     - server/src/services/queue/waveWorker.ts: Added auto-simulation in demo mode (3.5s delay after wave notification) to simulate verified donor acceptances automatically.
+     - server/src/controllers/requestController.ts: Implemented `executeSimulatedAcceptance` and `simulateDonorAcceptance` endpoints.
+     - server/src/routes/requestRoutes.ts: Added `POST /:id/simulate-accept`.
+     - client/src/pages/LiveDashboardPage.tsx: Added 2-second fallback polling interval while search is active, plus a manual "⚡ Accept as Donor Now" button for instant testing.
+  5. Verification:
+     - Rebuilt all Docker containers. Verified end-to-end: created request `RS-MZO98P` (2 units of O+), observed Wave 1 auto-acceptance at 4s (1/2 units confirmed, PARTIALLY_FULFILLED), followed by Wave 2 auto-acceptance at 10s (2/2 units confirmed, FULFILLED).
