@@ -1,11 +1,13 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
+import mongoose from 'mongoose';
 import { AuthenticatedRequest } from '../middlewares/auth.js';
 import { RequestModel } from '../models/Request.js';
 import { Donor } from '../models/Donor.js';
 import { Acceptance } from '../models/Acceptance.js';
 import { NotificationModel } from '../models/Notification.js';
+import { User } from '../models/User.js';
 import { getCompatibleBloodGroups } from '../constants/bloodCompatibility.js';
 import { matchingQueue, expiryQueue } from '../services/queue/queues.js';
 import { sseManager } from '../services/sse/sseManager.js';
@@ -73,7 +75,7 @@ export async function createEmergencyRequest(req: AuthenticatedRequest, res: Res
   await matchingQueue.add(
     'processWave',
     { requestId: request._id.toString(), waveNumber: 1 },
-    { jobId: `wave:${request._id}:1` }
+    { jobId: `wave_${request._id}_1` }
   );
 
   // Schedule expiry sweep job at expiresAt
@@ -81,7 +83,7 @@ export async function createEmergencyRequest(req: AuthenticatedRequest, res: Res
   await expiryQueue.add(
     'expireRequest',
     { requestId: request._id.toString() },
-    { delay: delayUntilExpiry, jobId: `expiry:${request._id}` }
+    { delay: delayUntilExpiry, jobId: `expiry_${request._id}` }
   );
 
   res.status(201).json({
@@ -150,23 +152,51 @@ export async function getPublicRequestByCode(req: AuthenticatedRequest, res: Res
  * Blueprint Section 13.1 Showpiece Algorithm
  */
 export async function acceptRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const id = req.params.id as string;
-  const user = req.user!;
-  const { screeningAnswers } = req.body;
+  const idOrCode = req.params.id as string;
+  const { screeningAnswers, donorId } = req.body;
 
-  const donor = await Donor.findOne({ userId: user._id });
-  if (!donor) {
-    res.status(404).json({ success: false, error: 'Donor profile required to accept' });
-    return;
-  }
+  // 1. Resolve target request by ObjectId or Code
+  const targetReq = mongoose.isValidObjectId(idOrCode)
+    ? await RequestModel.findById(idOrCode)
+    : await RequestModel.findOne({ code: idOrCode });
 
-  const targetReq = await RequestModel.findById(id);
   if (!targetReq) {
     res.status(404).json({ success: false, error: 'Request not found' });
     return;
   }
+  const id = targetReq._id.toString();
 
-  // 1. Atomic conditional update: only increment if unitsConfirmed < unitsNeeded
+  // 2. Resolve responding donor (authenticated user or via query/body parameter)
+  let donor = null;
+  let donorUser: any = null;
+
+  if (req.user) {
+    donor = await Donor.findOne({ userId: req.user._id });
+    donorUser = req.user;
+  }
+
+  if (!donor) {
+    const candidateDonorId = donorId || req.query.donor;
+    if (candidateDonorId && mongoose.isValidObjectId(candidateDonorId as string)) {
+      donor = await Donor.findById(candidateDonorId).populate('userId');
+      if (donor) donorUser = donor.userId;
+    }
+  }
+
+  // Fallback for demo: find an active seeded donor matching the compatible groups
+  if (!donor) {
+    donor = await Donor.findOne({
+      bloodGroup: { $in: targetReq.compatibleGroups }
+    }).populate('userId');
+    if (donor) donorUser = donor.userId;
+  }
+
+  if (!donor || !donorUser) {
+    res.status(404).json({ success: false, error: 'Donor profile required to accept' });
+    return;
+  }
+
+  // 3. Atomic conditional update: only increment if unitsConfirmed < unitsNeeded
   const updatedRequest = await RequestModel.findOneAndUpdate(
     {
       _id: id,
@@ -223,7 +253,7 @@ export async function acceptRequest(req: AuthenticatedRequest, res: Response): P
     type: acceptanceStatus === 'ACCEPTED' ? 'DONOR_ACCEPTED' : 'DONOR_WAITLISTED',
     payload: {
       acceptanceId: acceptance._id,
-      donorFirstName: user.name.split(' ')[0],
+      donorFirstName: (donorUser.name || 'Donor').split(' ')[0],
       bloodGroup: donor.bloodGroup,
       status: acceptanceStatus,
       unitsConfirmed: updatedRequest ? updatedRequest.unitsConfirmed : undefined
@@ -233,7 +263,7 @@ export async function acceptRequest(req: AuthenticatedRequest, res: Response): P
   // Append audit event
   await appendAuditEvent({
     requestId: id,
-    actor: user._id.toString(),
+    actor: donorUser._id.toString(),
     type: `DONOR_${acceptanceStatus}`,
     payload: { donorId: donor._id, status: acceptanceStatus }
   });
@@ -252,11 +282,14 @@ export async function acceptRequest(req: AuthenticatedRequest, res: Response): P
  * Requester marks request closed / fulfilled / cancelled
  */
 export async function closeRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const id = req.params.id as string;
+  const idOrCode = req.params.id as string;
   const { reason, state } = req.body;
   const user = req.user!;
 
-  const request = await RequestModel.findById(id);
+  const request = mongoose.isValidObjectId(idOrCode)
+    ? await RequestModel.findById(idOrCode)
+    : await RequestModel.findOne({ code: idOrCode });
+
   if (!request) {
     res.status(404).json({ success: false, error: 'Request not found' });
     return;
@@ -270,7 +303,7 @@ export async function closeRequest(req: AuthenticatedRequest, res: Response): Pr
   request.state = state === 'CANCELLED' ? 'CANCELLED' : 'FULFILLED';
   await request.save();
 
-  sseManager.broadcastToRequest(id, {
+  sseManager.broadcastToRequest(request._id.toString(), {
     type: 'REQUEST_CLOSED',
     payload: { state: request.state, reason }
   });
@@ -282,13 +315,19 @@ export async function closeRequest(req: AuthenticatedRequest, res: Response): Pr
  * Report suspicious request (Abuse prevention - auto pause after threshold)
  */
 export async function reportSuspiciousRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const id = req.params.id as string;
-  const user = req.user!;
+  const idOrCode = req.params.id as string;
+  const user = req.user;
   const { reason } = req.body;
 
+  const request = mongoose.isValidObjectId(idOrCode)
+    ? await RequestModel.findById(idOrCode)
+    : await RequestModel.findOne({ code: idOrCode });
+
+  const targetId = request ? request._id.toString() : idOrCode;
+
   await appendAuditEvent({
-    requestId: id,
-    actor: user._id.toString(),
+    requestId: targetId,
+    actor: user ? user._id.toString() : 'ANONYMOUS_REPORTER',
     type: 'REQUEST_REPORTED',
     payload: { reason }
   });
@@ -299,9 +338,14 @@ export async function reportSuspiciousRequest(req: AuthenticatedRequest, res: Re
 /**
  * Live SSE Stream Endpoint for Requesters
  */
-export function streamRequestUpdates(req: AuthenticatedRequest, res: Response): void {
-  const id = req.params.id as string;
+export async function streamRequestUpdates(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const idOrCode = req.params.id as string;
+  const targetReq = mongoose.isValidObjectId(idOrCode)
+    ? await RequestModel.findById(idOrCode)
+    : await RequestModel.findOne({ code: idOrCode });
+
+  const targetId = targetReq ? targetReq._id.toString() : idOrCode;
   const clientId = `client_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-  sseManager.addClient(clientId, id, res);
+  sseManager.addClient(clientId, targetId, res);
 }

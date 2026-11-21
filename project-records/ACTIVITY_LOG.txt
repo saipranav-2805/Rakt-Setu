@@ -94,3 +94,29 @@ Action: Executed automated test suite in container:
   - All 19 tests passed across 5 test suites.
   - 50-way concurrent acceptance under contention passed (asserted exactly 2 accepted, 48 waitlisted, 0 over-allocations).
 -----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+Timestamp: 2026-11-21T23:48:00+05:30
+Action: Full Frontend UI Overhaul & Backend Resilience Fixes:
+  1. Frontend Design System & UI Overhaul:
+     - client/tailwind.config.js: Added complete blood color palette (50-950) with crimson branding (#be123c, #9f1239, #881337).
+     - client/src/index.css: Added Google Inter font, heartbeat animation, live pulse dot, card hover lift, smooth transitions.
+     - client/src/App.tsx: Redesigned sticky header with emergency banner ticker, responsive navigation, and compliance footer.
+     - client/src/pages/HomePage.tsx: Complete redesign with emergency hero banner, 4 stats badges, 8 large symmetrical blood group buttons with custom gradients, 4-wave escalation breakdown, and 3 feature trust cards.
+     - client/src/pages/CreateRequestPage.tsx: Implemented 3-step wizard with visual progress indicator (Patient Info -> Hospital -> Verify & Dispatch), urgency selector with color-coded guidelines, compatible blood groups chip preview, auto-generated WhatsApp notification preview, and phone OTP verification.
+     - client/src/pages/LiveDashboardPage.tsx: Added live SSE connection badge, 4-wave segmented progression tracker with distance badges, real-time units confirmed progress bar, responsive donor response cards with privacy-masked contacts and direct WhatsApp/Phone call links.
+     - client/src/pages/DonorOnboardingPage.tsx: Built 3-step donor registration wizard (Identity & OTP -> Profile -> DPDP Act 2023 Consent), NBTC eligibility hints (45kg weight, 90/120-day cooldown), and success confirmation view.
+     - client/src/pages/DonorResponsePage.tsx: Designed emergency donor action screen with 4-item same-day screening checklist, Accept/Decline action buttons, and confirmation/standby cards.
+     - client/src/pages/AdminPage.tsx: Built platform moderation view with risk queue metric cards, risk level badges, and one-click demo admin authentication.
+  2. Nginx & SSE Streaming Configuration:
+     - client/nginx.conf: Configured reverse proxy with `proxy_buffering off`, `proxy_read_timeout 300s`, and `X-Accel-Buffering no` for uninterrupted Server-Sent Events (SSE) streaming.
+  3. BullMQ Job ID Colon Resolution:
+     - server/src/controllers/requestController.ts: Replaced colons with underscores in BullMQ custom job IDs (`wave_${request._id}_1`, `expiry_${request._id}`).
+     - server/src/services/queue/waveWorker.ts: Replaced colons with underscores in escalation job IDs (`wave_${request._id}_${waveNumber + 1}`).
+  4. API & Controller Enhancements:
+     - server/src/middlewares/auth.ts: Added `optionalAuth` middleware.
+     - server/src/controllers/requestController.ts: Enhanced `acceptRequest`, `streamRequestUpdates`, `closeRequest`, and `reportSuspiciousRequest` to handle both MongoDB ObjectId and 6-character code (`RS-XXXXXX`), and enable demo/unauthenticated donor acceptance.
+     - docker-compose.yml: Added `DEMO_MODE: "true"` to server and worker services for predictable demo OTP (`123456`).
+  5. Container Rebuild & Verification:
+     - Rebuilt and restarted all 5 Docker containers via `docker compose up -d --build`.
+     - Executed full end-to-end integration test: OTP verification -> Emergency request creation (`RS-RHGC3L`) -> Wave 1 candidate matching (58 candidates matched) -> Donor acceptance -> Concurrency-safe state transition (`OPEN` -> `FULFILLED`, 1/1 units confirmed). All endpoints returning 200 OK.

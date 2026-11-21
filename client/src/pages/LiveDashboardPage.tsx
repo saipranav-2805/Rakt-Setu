@@ -1,15 +1,138 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useEventSource } from '../hooks/useEventSource';
 import {
-  Radio,
-  Phone,
-  MessageSquare,
-  Clock,
-  ShieldCheck,
-  Copy,
-  Check
+  Radio, Phone, MessageSquare, Clock, ShieldCheck,
+  Copy, Check, ChevronLeft, Droplets, Users, Ambulance,
+  Waves, MapPin
 } from 'lucide-react';
+
+const WAVE_CONFIG = [
+  { wave: 1, radius: '5 km',  label: 'Hyperlocal', color: 'bg-blue-500' },
+  { wave: 2, radius: '15 km', label: 'District',   color: 'bg-indigo-500' },
+  { wave: 3, radius: '30 km', label: 'City-wide',  color: 'bg-purple-500' },
+  { wave: 4, radius: '50 km', label: 'Regional',   color: 'bg-blood-600' },
+];
+
+function LivePulse({ connected }: { connected: boolean }) {
+  return (
+    <div className={`flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${
+      connected
+        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        : 'bg-slate-50 text-slate-500 border-slate-200'
+    }`}>
+      <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 live-dot' : 'bg-slate-400'}`} />
+      <Radio className="w-3.5 h-3.5" />
+      <span>{connected ? 'Live' : 'Reconnecting'}</span>
+    </div>
+  );
+}
+
+function WaveProgressBar({ currentWave, radiusKm }: { currentWave: number; radiusKm: number }) {
+  const percent = (currentWave / 4) * 100;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center space-x-2 font-bold text-slate-700">
+          <Waves className="w-4 h-4 text-blue-500" />
+          <span>Wave {currentWave} of 4 Active</span>
+        </div>
+        <div className="flex items-center space-x-1.5 text-blood-700 font-bold">
+          <MapPin className="w-3.5 h-3.5" />
+          <span>~{radiusKm} km radius</span>
+        </div>
+      </div>
+
+      {/* Segmented bar */}
+      <div className="flex gap-1.5">
+        {WAVE_CONFIG.map(({ wave, radius, label, color }) => (
+          <div key={wave} className="flex-1">
+            <div className={`h-2 rounded-full transition-all duration-700 ${
+              wave <= currentWave ? color : 'bg-slate-200'
+            }`} />
+            <div className="text-[9px] text-slate-400 font-medium mt-1 text-center hidden sm:block">
+              W{wave} · {radius}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-between text-[10px] text-slate-400 font-medium sm:hidden">
+        <span>W1 (5km)</span>
+        <span>W2 (15km)</span>
+        <span>W3 (30km)</span>
+        <span>W4 (50km)</span>
+      </div>
+
+      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+        <div
+          className="bg-gradient-to-r from-blue-400 to-blood-600 h-full rounded-full transition-all duration-700 ease-out wave-fill-anim"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DonorCard({ acc }: { acc: any }) {
+  const isAccepted = acc.status === 'ACCEPTED';
+  return (
+    <div className={`rounded-2xl border p-4 space-y-3 card-lift ${
+      isAccepted
+        ? 'bg-emerald-50 border-emerald-200'
+        : 'bg-amber-50 border-amber-200'
+    }`}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-center space-x-3">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${
+            isAccepted ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-white'
+          }`}>
+            {(acc.donorFirstName || 'D')[0]}
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">{acc.donorFirstName || 'Anonymous'} (Verified)</h3>
+            <div className="flex items-center space-x-2 mt-0.5">
+              <span className="text-xs text-slate-500">Blood:</span>
+              <span className="text-xs font-black text-blood-700 bg-blood-100 px-1.5 py-0.5 rounded">
+                {acc.bloodGroup}
+              </span>
+            </div>
+          </div>
+        </div>
+        <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wide ${
+          isAccepted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+        }`}>
+          {acc.status}
+        </span>
+      </div>
+
+      {acc.contactUnlocked && acc.phone ? (
+        <div className="flex gap-2 pt-1">
+          <a
+            href={`tel:${acc.phone}`}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5"
+          >
+            <Phone className="w-3.5 h-3.5" />
+            <span>Call Donor</span>
+          </a>
+          <a
+            href={`https://wa.me/${acc.phone.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 bg-[#25D366] hover:bg-[#1db954] text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>WhatsApp</span>
+          </a>
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-400 italic bg-white/60 px-3 py-2 rounded-lg border border-slate-200">
+          🔒 Contact masked for privacy. Unlocked upon verified acceptance.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function LiveDashboardPage() {
   const { code } = useParams<{ code: string }>();
@@ -17,209 +140,191 @@ export default function LiveDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // Fetch initial request snapshot
-  const fetchRequest = async () => {
+  const fetchRequest = useCallback(async () => {
     try {
       const res = await fetch(`/api/v1/requests/${code}`);
       const data = await res.json();
-      if (data.success) {
-        setRequest(data.request);
-      }
+      if (data.success) setRequest(data.request);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchRequest();
   }, [code]);
 
-  // Connect to SSE stream once request is loaded
+  useEffect(() => { fetchRequest(); }, [fetchRequest]);
+
   const sseUrl = request?.id ? `/api/v1/requests/${request.id}/stream` : null;
   const { data: sseEvent, connected } = useEventSource(sseUrl);
 
-  // Handle incoming live events
   useEffect(() => {
     if (!sseEvent) return;
-
     if (sseEvent.type === 'WAVE_ADVANCED') {
       setRequest((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              currentWave: sseEvent.payload.wave,
-              radiusKm: sseEvent.payload.radiusKm
-            }
-          : prev
+        prev ? { ...prev, currentWave: sseEvent.payload.wave, radiusKm: sseEvent.payload.radiusKm } : prev
       );
     } else if (sseEvent.type === 'DONOR_ACCEPTED' || sseEvent.type === 'DONOR_WAITLISTED') {
-      // Refresh request data to pull new acceptances
       fetchRequest();
     }
-  }, [sseEvent]);
+  }, [sseEvent, fetchRequest]);
 
   const copyShareLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center animate-pulse space-y-4">
-        <div className="h-6 bg-slate-200 rounded w-1/3 mx-auto"></div>
-        <div className="h-4 bg-slate-100 rounded w-1/2 mx-auto"></div>
+      <div className="max-w-3xl mx-auto space-y-4">
+        <div className="bg-white rounded-2xl p-8 border border-slate-200 animate-pulse">
+          <div className="h-6 bg-slate-200 rounded-xl w-1/3 mb-3" />
+          <div className="h-4 bg-slate-100 rounded-xl w-1/2 mb-6" />
+          <div className="h-3 bg-slate-200 rounded-full" />
+        </div>
       </div>
     );
   }
 
   if (!request) {
     return (
-      <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center space-y-2">
-        <h2 className="text-xl font-bold text-slate-800">Request Not Found</h2>
-        <p className="text-sm text-slate-500">The request code #{code} does not exist or has expired.</p>
+      <div className="max-w-xl mx-auto bg-white rounded-2xl p-10 border border-slate-200 text-center space-y-4">
+        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
+          <Droplets className="w-8 h-8 text-slate-400" />
+        </div>
+        <h2 className="text-xl font-black text-slate-800">Request Not Found</h2>
+        <p className="text-sm text-slate-500">
+          The request code <strong>#{code}</strong> does not exist or has expired.
+        </p>
+        <Link to="/" className="inline-flex items-center space-x-2 text-blood-700 font-bold text-sm hover:underline">
+          <ChevronLeft className="w-4 h-4" />
+          <span>Back to Home</span>
+        </Link>
       </div>
     );
   }
 
-  const wavePercentages = [25, 50, 75, 100];
-  const progressPercent = wavePercentages[(request.currentWave || 1) - 1] || 25;
+  const isFulfilled = request.state === 'FULFILLED';
+  const confirmedCount = request.unitsConfirmed ?? 0;
+  const neededCount = request.unitsNeeded ?? 0;
+  const fillPercent = neededCount > 0 ? Math.min(100, (confirmedCount / neededCount) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Live Header Card */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="max-w-3xl mx-auto space-y-5">
+
+      {/* ── Main Status Card ── */}
+      <div className={`rounded-2xl shadow-sm border p-6 sm:p-8 ${
+        isFulfilled
+          ? 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200'
+          : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
           <div className="flex items-center space-x-3">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+              isFulfilled ? 'bg-emerald-500' : 'bg-blood-700'
+            }`}>
+              <Ambulance className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
                 <h1 className="text-xl font-black text-slate-800">Request #{request.code}</h1>
-                <span
-                  className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                    request.state === 'FULFILLED'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-blood-100 text-blood-800'
-                  }`}
-                >
+                <span className={`text-xs px-2.5 py-1 rounded-full font-black uppercase tracking-wide ${
+                  isFulfilled
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : request.state === 'ACTIVE'
+                    ? 'bg-blood-100 text-blood-800'
+                    : 'bg-slate-100 text-slate-700'
+                }`}>
                   {request.state}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {request.unitsConfirmed} of {request.unitsNeeded} units confirmed · Hospital: {request.hospital.name}
+              <p className="text-sm text-slate-500 mt-0.5">
+                {request.hospital?.name} · {request.patient?.bloodGroup}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <LivePulse connected={connected} />
             <button
               onClick={copyShareLink}
-              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 transition-colors"
+              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? 'Link Copied' : 'Share with Family'}</span>
+              <span>{copied ? 'Copied!' : 'Share'}</span>
             </button>
-            <div className="flex items-center space-x-1 text-xs text-slate-500 bg-slate-50 px-2.5 py-2 rounded-xl border border-slate-200">
-              <Radio className={`w-3.5 h-3.5 ${connected ? 'text-emerald-500' : 'text-slate-400'}`} />
-              <span>{connected ? 'Live Stream' : 'Connecting'}</span>
-            </div>
           </div>
         </div>
 
-        {/* Wave Progression Bar (Section 12.3 & 17) */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
-          <div className="flex justify-between text-xs font-bold text-slate-700">
-            <span>Escalation Wave {request.currentWave || 1} of 4</span>
-            <span className="text-blood-700">Search Radius: ~{request.radiusKm || 5} km</span>
+        {/* Units progress */}
+        <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center space-x-2 text-sm font-bold text-slate-700">
+              <Droplets className="w-4 h-4 text-blood-600" />
+              <span>Units Confirmed</span>
+            </div>
+            <span className="text-sm font-black">
+              <span className={isFulfilled ? 'text-emerald-600' : 'text-blood-700'}>{confirmedCount}</span>
+              <span className="text-slate-400"> / {neededCount}</span>
+            </span>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
             <div
-              className="bg-blood-600 h-full rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progressPercent}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-            <span>Wave 1 (5km)</span>
-            <span>Wave 2 (15km)</span>
-            <span>Wave 3 (30km)</span>
-            <span>Wave 4 (50km)</span>
+              className={`h-full rounded-full transition-all duration-700 ${isFulfilled ? 'bg-emerald-500' : 'bg-blood-600'}`}
+              style={{ width: `${fillPercent}%` }}
+            />
           </div>
         </div>
+
+        {/* Wave progress */}
+        <WaveProgressBar currentWave={request.currentWave || 1} radiusKm={request.radiusKm || 5} />
       </div>
 
-      {/* Accepted Donors List (Live Acceptance Cards) */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-        <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
-          <ShieldCheck className="w-5 h-5 text-emerald-600" />
-          <span>Responding Donors ({request.acceptances?.length || 0})</span>
-        </h2>
+      {/* ── Responding Donors ── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-black text-slate-800 flex items-center space-x-2">
+            <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            </div>
+            <span>Responding Donors</span>
+          </h2>
+          <span className="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            {request.acceptances?.length || 0} responded
+          </span>
+        </div>
 
-        {request.acceptances?.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 text-xs space-y-2">
-            <Clock className="w-8 h-8 text-slate-300 mx-auto animate-spin" />
-            <p>Scanning matching donors in the active radius...</p>
-            <p className="text-[11px] text-slate-400">
-              When a donor accepts on WhatsApp, their card will appear here in real time.
-            </p>
+        {!request.acceptances || request.acceptances.length === 0 ? (
+          <div className="text-center py-12 space-y-4">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
+              <Users className="w-8 h-8 text-slate-300 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-600">Scanning donors in active radius...</p>
+              <p className="text-xs text-slate-400 mt-1">
+                When a donor accepts the WhatsApp request, their card will appear here in real time.
+              </p>
+            </div>
+            <div className="flex items-center justify-center space-x-2 text-xs text-slate-400">
+              <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
+              <span>Notifications dispatched — awaiting responses</span>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {request.acceptances.map((acc: any) => (
-              <div
-                key={acc.id}
-                className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 ${
-                  acc.status === 'ACCEPTED'
-                    ? 'bg-emerald-50/50 border-emerald-200'
-                    : 'bg-amber-50/40 border-amber-200'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm">{acc.donorFirstName} (Verified Donor)</h3>
-                    <p className="text-xs text-slate-500">Blood Group: <strong>{acc.bloodGroup}</strong></p>
-                  </div>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                      acc.status === 'ACCEPTED'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {acc.status}
-                  </span>
-                </div>
-
-                {/* Direct Action Contact Buttons */}
-                {acc.contactUnlocked && acc.phone ? (
-                  <div className="flex gap-2 pt-1">
-                    <a
-                      href={`tel:${acc.phone}`}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition-colors"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                      <span>Call Donor</span>
-                    </a>
-                    <a
-                      href={`https://wa.me/${acc.phone.replace(/\D/g, '')}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition-colors"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>WhatsApp</span>
-                    </a>
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-slate-400 italic">
-                    Contact masked for privacy. Unlocked upon verified acceptance.
-                  </p>
-                )}
-              </div>
+              <DonorCard key={acc.id} acc={acc} />
             ))}
           </div>
         )}
+      </div>
+
+      {/* Back link */}
+      <div className="text-center">
+        <Link to="/" className="inline-flex items-center space-x-1.5 text-sm text-slate-500 hover:text-blood-700 font-medium">
+          <ChevronLeft className="w-4 h-4" />
+          <span>Back to Home</span>
+        </Link>
       </div>
     </div>
   );

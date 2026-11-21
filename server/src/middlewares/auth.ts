@@ -36,6 +36,30 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   }
 }
 
+export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+  const secret = process.env.JWT_ACCESS_SECRET || 'raktsetu_default_dev_secret_32_chars_long!';
+
+  try {
+    const decoded = jwt.verify(token, secret) as { userId: string; role: UserRole };
+    User.findById(decoded.userId)
+      .then((user) => {
+        if (user && user.status !== 'banned') {
+          req.user = user;
+        }
+        next();
+      })
+      .catch(() => next());
+  } catch {
+    next();
+  }
+}
+
 export function requireRole(...roles: UserRole[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {

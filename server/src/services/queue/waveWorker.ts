@@ -101,7 +101,7 @@ export const waveWorker = new Worker<WaveJobData>(
           });
 
           await notificationQueue.add(
-            `notify:${request._id}:${candidateMatch.donor._id}`,
+            `notify_${request._id}_${candidateMatch.donor._id}`,
             {
               notificationId: notif._id.toString(),
               requestId: request._id.toString(),
@@ -146,7 +146,7 @@ export const waveWorker = new Worker<WaveJobData>(
       const isDemoMode = process.env.DEMO_MODE === 'true';
       const delayMs = getWaveDelayMs(waveNumber, request.urgency, isDemoMode);
 
-      const nextJobId = `wave:${request._id}:${waveNumber + 1}`;
+      const nextJobId = `wave_${request._id}_${waveNumber + 1}`;
       console.log(`[WaveWorker] Scheduling next wave (Wave ${waveNumber + 1}) in ${delayMs / 1000}s with Job ID: ${nextJobId}`);
 
       await matchingQueue.add(
