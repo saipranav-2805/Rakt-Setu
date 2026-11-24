@@ -111,7 +111,11 @@ export async function getPublicRequestByCode(req: AuthenticatedRequest, res: Res
     populate: { path: 'userId', select: 'name phone' }
   });
 
-  const isRequester = req.user && req.user._id.toString() === request.requesterId._id.toString();
+  const isRequester =
+    req.user &&
+    ((request.requesterId as any)?._id
+      ? req.user._id.toString() === (request.requesterId as any)._id.toString()
+      : req.user._id.toString() === request.requesterId.toString());
 
   // Mask donor contact details unless user is the authenticated requester
   const maskedAcceptances = acceptances.map((acc: any) => {

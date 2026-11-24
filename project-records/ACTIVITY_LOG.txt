@@ -157,3 +157,32 @@ Action: Full Stack Restart Verification & Created Comprehensive Architecture Doc
        - Core algorithmic formulas (8-group compatibility, 5-factor ranking, atomic conditional update, distributed SSE via Redis Pub/Sub).
        - End-to-end user journeys for requesters and voluntary donors.
        - 100% passing test verification matrix and operational cheat sheet.
+
+-----------------------------------------------------------------------------
+Timestamp: 2026-11-24T18:05:00+05:30
+Action: Production-Grade Hardening, Automated Test Suite (35/35 passing), and Deployment Orchestration:
+  - Fixed Concurrency & Duplicate Key Handling:
+    - Updated `server/tests/concurrency/acceptContention.test.ts` to ensure clean idempotent teardown/setup of test users and requests.
+    - Verified 50-way concurrent acceptance test: exactly 2 accepted, 48 waitlisted, 0 over-allocations.
+  - Comprehensive API Integration Test Suite:
+    - Created `server/tests/integration/requestLifecycle.test.ts` with 16 automated integration tests covering:
+      - Health & nearby facilities endpoints
+      - Phone OTP authentication & JWT token generation
+      - NBTC demographic eligibility checks (age <18 and weight <45kg rejection)
+      - DPDP Act 2023 consent validation
+      - Emergency request creation with auto-expanding compatible blood groups
+      - Public request lookup with PII phone masking vs authenticated requester unmasked view
+      - Atomic donor acceptance & FULFILLED state machine transition
+      - Subsequent acceptances placed on WAITLIST under zero capacity
+      - Request cancellation and state machine enforcement
+    - Total test suite: 35 passing tests across 6 suites (0 failures).
+  - Backend Production Hardening:
+    - Implemented graceful shutdown in `server/src/server.ts` listening to SIGTERM and SIGINT, cleanly draining HTTP server connections, Mongoose connections, and Redis handles with 10s fallback timeout.
+    - Added security rate-limiting with `express-rate-limit` on `/api/v1/` and strict limiter on `/api/v1/auth/` to prevent OTP brute-forcing.
+    - Added `USER node` non-root execution in `server/Dockerfile`.
+    - Created `.dockerignore` files for both `server` and `client` to optimize build contexts and prevent credential/node_modules leakage.
+    - Removed duplicate schema index definition on `WebhookEvent.ts`.
+  - Deployment Architecture & Documentation:
+    - Created `docker-compose.prod.yml` with single-host deployment topology, container logging limits, Redis password authentication, and Caddy reverse proxy integration.
+    - Created `Caddyfile` for automated Let's Encrypt TLS certificates, security headers, and unbuffered SSE reverse proxying.
+    - Authored comprehensive `DEPLOYMENT.md` detailing VPS setup, Cloud PaaS alternatives (Atlas + Upstash + Render + Vercel), automated daily MongoDB backup cron scripts, recommended VS Code extensions, and resume bullet points.

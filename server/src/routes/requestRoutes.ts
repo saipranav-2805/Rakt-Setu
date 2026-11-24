@@ -15,7 +15,7 @@ import { validate } from '../middlewares/validate.js';
 const router = Router();
 
 router.post('/', requireAuth, validate(createRequestSchema), createEmergencyRequest);
-router.get('/:code', getPublicRequestByCode);
+router.get('/:code', optionalAuth, getPublicRequestByCode);
 router.get('/:id/stream', streamRequestUpdates);
 router.post('/:id/accept', optionalAuth, acceptRequest);
 router.post('/:id/simulate-accept', simulateDonorAcceptance);

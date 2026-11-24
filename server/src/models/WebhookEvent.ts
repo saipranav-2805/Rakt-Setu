@@ -15,8 +15,7 @@ const WebhookEventSchema = new Schema<IWebhookEvent>(
     },
     eventId: {
       type: String,
-      required: true,
-      unique: true
+      required: true
     },
     receivedAt: {
       type: Date,

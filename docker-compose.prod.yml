@@ -1,0 +1,151 @@
+# ==============================================================================
+# RaktSetu Production Deployment Configuration
+# Single-Host / VPS Deployment with Automated HTTPS (Caddy / Let's Encrypt)
+# ==============================================================================
+
+services:
+  # 1. MongoDB 7.0 Single-Node Replica Set (Required for MongoDB Transactions)
+  mongo:
+    image: mongo:7.0
+    container_name: raktsetu-mongo-prod
+    restart: unless-stopped
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    environment:
+      MONGO_INITDB_DATABASE: raktsetu
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongo:27017\"}]}).ok }'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # 2. Redis 7.2 (Queue State & Rate Limiting)
+  redis:
+    image: redis:7.2-alpine
+    container_name: raktsetu-redis-prod
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 3. Express REST API Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: raktsetu-api-prod
+    restart: unless-stopped
+    expose:
+      - "5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      CLIENT_ORIGIN: https://${DOMAIN}
+      MONGODB_URI: mongodb://mongo:27017/raktsetu?replicaSet=rs0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      NOTIFICATION_PROVIDER: ${NOTIFICATION_PROVIDER:-mock}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # 4. Dedicated Background Worker (Matching, Wave Escalation, Expiry Sweeps)
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: raktsetu-worker-prod
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongo:27017/raktsetu?replicaSet=rs0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NOTIFICATION_PROVIDER: ${NOTIFICATION_PROVIDER:-mock}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # 5. React 19 Frontend Web Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: raktsetu-client-prod
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - server
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 6. Caddy Reverse Proxy (Automatic HTTPS / Let's Encrypt TLS)
+  caddy:
+    image: caddy:2-alpine
+    container_name: raktsetu-caddy-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - client
+      - server
+
+volumes:
+  mongo-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

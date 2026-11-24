@@ -87,10 +87,10 @@ class SSEManager {
   /**
    * Push directly to in-memory HTTP responses in this process
    */
-  sendToLocalClients(requestId: string, data: { type: string; payload: any }): void {
-    const message = `data: ${JSON.stringify(data)}\n\n`;
+    sendToLocalClients(requestId: string, data: { type: string; payload: any }): void {
+      const message = `data: ${JSON.stringify(data)}\n\n`;
 
-    for (const client of this.clients.values()) {
+      for(const client of this.clients.values()) {
       if (client.requestId === requestId) {
         try {
           client.res.write(message);

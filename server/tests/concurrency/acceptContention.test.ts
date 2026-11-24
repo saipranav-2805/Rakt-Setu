@@ -22,6 +22,15 @@ describe('Showpiece Concurrency Test: 50-way Concurrent Accept under Contention'
   beforeAll(async () => {
     await mongoose.connect(MONGODB_TEST_URI);
 
+    // Clean up any remnants from previous interrupted runs to ensure test idempotency
+    const oldUsers = await User.find({ phone: { $regex: /^\+919(9999|8000)/ } }).select('_id');
+    const oldUserIds = oldUsers.map((u) => u._id);
+    await Promise.all([
+      User.deleteMany({ phone: { $regex: /^\+919(9999|8000)/ } }),
+      Donor.deleteMany({ userId: { $in: oldUserIds } }),
+      RequestModel.deleteMany({ code: 'RS-TEST-CONCUR' })
+    ]);
+
     // 1. Create a requester user
     const requester = await User.create({
       phone: '+919999900000',
@@ -81,7 +90,7 @@ describe('Showpiece Concurrency Test: 50-way Concurrent Accept under Contention'
   afterAll(async () => {
     // Cleanup test collections
     await Promise.all([
-      User.deleteMany({ phone: { $regex: /^\+919(99999|80000)/ } }),
+      User.deleteMany({ phone: { $regex: /^\+919(9999|8000)/ } }),
       Donor.deleteMany({ _id: { $in: testDonors.map((d) => d.donor._id) } }),
       RequestModel.deleteOne({ _id: testRequestId }),
       Acceptance.deleteMany({ requestId: testRequestId })
