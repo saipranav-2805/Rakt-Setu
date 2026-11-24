@@ -139,3 +139,21 @@ Action: Accelerated Wave Search, Distributed SSE Pub/Sub, Auto-Simulation & Fixe
      - client/src/pages/LiveDashboardPage.tsx: Added 2-second fallback polling interval while search is active, plus a manual "⚡ Accept as Donor Now" button for instant testing.
   5. Verification:
      - Rebuilt all Docker containers. Verified end-to-end: created request `RS-MZO98P` (2 units of O+), observed Wave 1 auto-acceptance at 4s (1/2 units confirmed, PARTIALLY_FULFILLED), followed by Wave 2 auto-acceptance at 10s (2/2 units confirmed, FULFILLED).
+
+-----------------------------------------------------------------------------
+Timestamp: 2026-11-24T17:42:00+05:30
+Action: Full Stack Restart Verification & Created Comprehensive Architecture Documentation:
+  1. Full Stack Restart & Verification:
+     - Restarted all 5 Docker containers (raktsetu-mongo, raktsetu-redis, raktsetu-api, raktsetu-worker, raktsetu-client).
+     - Verified health check endpoints: API returned status "ok" on port 5001, Client served HTTP 200 on port 3000.
+     - Verified MongoDB database status: 5,001 active voluntary donors seeded with geospatial coordinates and NBTC cooldown dates.
+  2. Documentation Generation:
+     - Created /Users/pranav/Documents/Resume Projects/RaktSetu/WEBSITE_STRUCTURE.md:
+       - Detailed system architecture diagram & Docker container topology.
+       - Complete monorepo directory tree breakdown.
+       - Frontend screen-by-screen breakdown (HomePage, CreateRequestPage, LiveDashboardPage, DonorOnboardingPage, DonorResponsePage, AdminPage).
+       - Backend API specifications, route tables, controllers, and middlewares.
+       - Database ER diagram, Mongoose schemas, and compound / 2dsphere indexes.
+       - Core algorithmic formulas (8-group compatibility, 5-factor ranking, atomic conditional update, distributed SSE via Redis Pub/Sub).
+       - End-to-end user journeys for requesters and voluntary donors.
+       - 100% passing test verification matrix and operational cheat sheet.
